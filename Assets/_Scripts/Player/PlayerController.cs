@@ -1,9 +1,11 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 
 public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActions
 {
     CharacterController cc;
+    ThirdPersonInputs inputs;
 
     Vector2 direction;
     Vector3 velocity;
@@ -20,6 +22,23 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     //this will also be calculated based on our jump values
     float gravity;
 
+    void Awake()
+    {
+        inputs = new ThirdPersonInputs();
+    }
+
+    private void OnEnable()
+    {
+        inputs.Enable();
+        inputs.Overworld.SetCallbacks(this);
+    }
+
+    private void OnDisable()
+    {
+        inputs.Disable();
+        inputs.Overworld.RemoveCallbacks(this);
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -31,12 +50,7 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         initialJumpVelocity = -(gravity * timeToApex);
     }
 
-    public void OnMove(InputAction.CallbackContext ctx)
-    {
-        if (ctx.performed) direction = ctx.ReadValue<Vector2>();
-
-        if (ctx.canceled) direction = Vector2.zero;
-    }
+    
 
     private void FixedUpdate()
     {
@@ -54,8 +68,10 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         return -cc.minMoveDistance;
     }
 
-    public void OnJump(InputAction.CallbackContext context)
+    public void OnJump(InputAction.CallbackContext context) => isJumpPressed = context.ReadValueAsButton();
+    public void OnMove(InputAction.CallbackContext ctx)
     {
-        isJumpPressed = context.ReadValueAsButton();
+        if (ctx.performed) direction = ctx.ReadValue<Vector2>();
+        if (ctx.canceled) direction = Vector2.zero;
     }
 }
