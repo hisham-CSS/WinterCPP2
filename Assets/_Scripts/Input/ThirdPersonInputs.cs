@@ -44,6 +44,24 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""DropWeapon"",
+                    ""type"": ""Button"",
+                    ""id"": ""43497863-8291-40cd-a466-daba1cb3121a"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Attack"",
+                    ""type"": ""Button"",
+                    ""id"": ""700d68e9-75e3-4376-8505-b82e174cf9a6"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -134,6 +152,28 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
                     ""action"": ""Jump"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""0a65ba1c-fcec-4d71-802d-b85c6caf7387"",
+                    ""path"": ""<Keyboard>/e"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""DropWeapon"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c47fdc0f-0f38-4d61-96fc-82622da8e48f"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Attack"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -144,6 +184,8 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
         m_Overworld = asset.FindActionMap("Overworld", throwIfNotFound: true);
         m_Overworld_Move = m_Overworld.FindAction("Move", throwIfNotFound: true);
         m_Overworld_Jump = m_Overworld.FindAction("Jump", throwIfNotFound: true);
+        m_Overworld_DropWeapon = m_Overworld.FindAction("DropWeapon", throwIfNotFound: true);
+        m_Overworld_Attack = m_Overworld.FindAction("Attack", throwIfNotFound: true);
     }
 
     ~@ThirdPersonInputs()
@@ -212,12 +254,16 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
     private List<IOverworldActions> m_OverworldActionsCallbackInterfaces = new List<IOverworldActions>();
     private readonly InputAction m_Overworld_Move;
     private readonly InputAction m_Overworld_Jump;
+    private readonly InputAction m_Overworld_DropWeapon;
+    private readonly InputAction m_Overworld_Attack;
     public struct OverworldActions
     {
         private @ThirdPersonInputs m_Wrapper;
         public OverworldActions(@ThirdPersonInputs wrapper) { m_Wrapper = wrapper; }
         public InputAction @Move => m_Wrapper.m_Overworld_Move;
         public InputAction @Jump => m_Wrapper.m_Overworld_Jump;
+        public InputAction @DropWeapon => m_Wrapper.m_Overworld_DropWeapon;
+        public InputAction @Attack => m_Wrapper.m_Overworld_Attack;
         public InputActionMap Get() { return m_Wrapper.m_Overworld; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -233,6 +279,12 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
             @Jump.started += instance.OnJump;
             @Jump.performed += instance.OnJump;
             @Jump.canceled += instance.OnJump;
+            @DropWeapon.started += instance.OnDropWeapon;
+            @DropWeapon.performed += instance.OnDropWeapon;
+            @DropWeapon.canceled += instance.OnDropWeapon;
+            @Attack.started += instance.OnAttack;
+            @Attack.performed += instance.OnAttack;
+            @Attack.canceled += instance.OnAttack;
         }
 
         private void UnregisterCallbacks(IOverworldActions instance)
@@ -243,6 +295,12 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
             @Jump.started -= instance.OnJump;
             @Jump.performed -= instance.OnJump;
             @Jump.canceled -= instance.OnJump;
+            @DropWeapon.started -= instance.OnDropWeapon;
+            @DropWeapon.performed -= instance.OnDropWeapon;
+            @DropWeapon.canceled -= instance.OnDropWeapon;
+            @Attack.started -= instance.OnAttack;
+            @Attack.performed -= instance.OnAttack;
+            @Attack.canceled -= instance.OnAttack;
         }
 
         public void RemoveCallbacks(IOverworldActions instance)
@@ -264,5 +322,7 @@ public partial class @ThirdPersonInputs: IInputActionCollection2, IDisposable
     {
         void OnMove(InputAction.CallbackContext context);
         void OnJump(InputAction.CallbackContext context);
+        void OnDropWeapon(InputAction.CallbackContext context);
+        void OnAttack(InputAction.CallbackContext context);
     }
 }

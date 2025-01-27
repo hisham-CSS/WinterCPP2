@@ -1,35 +1,48 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.XR;
-using UnityEngine.Rendering;
+
 
 public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActions
 {
+    //controller components
     CharacterController cc;
     ThirdPersonInputs inputs;
     Camera mainCamera;
     Animator anim;
 
-    public LayerMask raycastCollisionLayer;
+    //movement and rotation
+    [Header("Movement Variables")]
+    [SerializeField] private float initSpeed = 5.0f;
+    [SerializeField] private float maxSpeed = 15.0f;
+    [SerializeField] private float moveAccel = 0.2f;
+    [SerializeField] private float rotationSpeed = 30.0f;
+    private float curSpeed = 5.0f;
 
+    //weapon system variables
+    [Header("Weapon Variables")]
+    [SerializeField] private Transform weaponAttachPoint;
+    Weapon weapon = null;
+
+    public LayerMask raycastCollisionLayer;
+    public static event Action<Collider, ControllerColliderHit> OnControllerColliderHitInternal;
+
+    //Character movement
     Vector2 direction;
     Vector3 velocity;
-    bool isJumpPressed = false;
 
-    private float initSpeed = 5.0f;
-    private float curSpeed = 5.0f;
-    private float moveAccel = 0.2f;
-    private float maxSpeed = 1.0f;
-    private float jumpHeight = 5f;
+    //jump variables
+    private bool isJumpPressed = false;
+    //TODO: creating isJumpReleased and fixing the jump to add mechanics such as variable jump height
+    private float jumpHeight = 0.1f;
     private float jumpTime = 0.7f; //both upward and downward movement
-
     //values that are calculated using jump height and jump time
-    float timeToApex; //max jump time / 2
-    float initialJumpVelocity;
-
+    private float timeToApex; //max jump time / 2
+    private float initialJumpVelocity;
     //this will also be calculated based on our jump values
-    float gravity;
+    private float gravity;
 
+    #region Setup Functions
     void Awake()
     {
         inputs = new ThirdPersonInputs();
@@ -54,12 +67,90 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
         anim = GetComponentInChildren<Animator>();
 
         mainCamera = Camera.main;
+        InitJump();
+    }
 
+    private void InitJump()
+    {
         //fomulas taken from the following video: https://www.youtube.com/watch?v=hG9SzQxaCm8
         timeToApex = jumpTime / 2;
         gravity = (-2 * jumpHeight) / Mathf.Pow(timeToApex, 2);
         initialJumpVelocity = -(gravity * timeToApex);
     }
+
+    private void OnApplicationFocus(bool focus)
+    {
+        if (!focus) Cursor.lockState = CursorLockMode.None;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+    #endregion
+    #region Input
+    public void OnJump(InputAction.CallbackContext context) => isJumpPressed = context.ReadValueAsButton();
+    public void OnMove(InputAction.CallbackContext ctx)
+    {
+        if (ctx.performed) direction = ctx.ReadValue<Vector2>();
+        if (ctx.canceled) direction = Vector2.zero;
+    }
+
+    public void OnDropWeapon(InputAction.CallbackContext context)
+    {
+        if (weapon) {
+            weapon.Drop(GetComponent<Collider>(), transform.forward);
+            weapon = null;
+        }
+    }
+
+    public void OnAttack(InputAction.CallbackContext context)
+    {
+        if (anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack")) return;
+
+        if (weapon) anim.SetTrigger("Attack");
+    }
+    #endregion
+    #region Player Movement
+    private Vector3 ProjectedMoveDirection()
+    {
+        //grabbing fwd and right vectors for camera relative movement
+        Vector3 cameraFwd = mainCamera.transform.forward;
+        Vector3 cameraRight = mainCamera.transform.right;
+
+        //remove yaw rotration
+        cameraFwd.y = 0;
+        cameraRight.y = 0;
+
+        cameraFwd.Normalize();
+        cameraRight.Normalize();
+
+        return cameraFwd * direction.y + cameraRight * direction.x;
+    }
+
+    private void UpdateCharacteVelocity(Vector3 dir)
+    {
+        if (direction == Vector2.zero) curSpeed = initSpeed;
+
+        //set velocity to desired move direction
+        velocity.x = dir.x;
+        velocity.z = dir.z;
+
+        //ensure we are clamped to max speed
+        curSpeed = Mathf.Clamp(curSpeed, initSpeed, maxSpeed);
+
+        //Debug.Log($"Player Controller current speed is : {curSpeed}");
+        //move along projected axis
+        velocity = new Vector3(velocity.x * curSpeed, velocity.y, velocity.z * curSpeed);
+
+        curSpeed += moveAccel * Time.fixedDeltaTime;
+
+        if (!cc.isGrounded) velocity.y += gravity * Time.fixedDeltaTime;
+        else velocity.y = CheckJump();
+    }
+
+    private float CheckJump()
+    {
+        if (isJumpPressed) return initialJumpVelocity;
+        return -cc.minMoveDistance;
+    }
+    #endregion
 
     void Update()
     {
@@ -79,55 +170,31 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
 
     private void FixedUpdate()
     {
-        if (direction.magnitude == 0)
+        Vector3 desiredMoveDirection = ProjectedMoveDirection();
+
+        if (!anim.GetCurrentAnimatorClipInfo(0)[0].clip.name.Contains("Attack"))
         {
-            velocity.x = 0;
-            velocity.z = 0;
-            curSpeed = initSpeed;
-            return;
+            UpdateCharacteVelocity(desiredMoveDirection);
+            cc.Move(velocity);
         }
- 
-        //grabbing fwd and right vectors for camera relative movement
-        Vector3 cameraFwd = mainCamera.transform.forward;
-        Vector3 cameraRight = mainCamera.transform.right;
-
-        //remove yaw rotration
-        cameraFwd.y = 0;
-        cameraRight.y = 0;
-
-        //camera projection formula for relative movement
-        Vector3 desiredMoveDirection = cameraFwd * direction.y + cameraRight * direction.x;
 
         //rotate towards direction of movement
-        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredMoveDirection), 0.1f);
+        if (direction.magnitude > 0)
+        {
+            float timeStep = rotationSpeed * Time.fixedDeltaTime;
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desiredMoveDirection), timeStep);
+        }
 
-        desiredMoveDirection *= (curSpeed * Time.fixedDeltaTime);
-        if (desiredMoveDirection.magnitude < maxSpeed) curSpeed += moveAccel;
-
-        velocity = desiredMoveDirection;
-
-        if (!cc.isGrounded) velocity.y += gravity * Time.fixedDeltaTime;
-        else velocity.y = CheckJump();
-
-        cc.Move(velocity);
-        
     }
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        
+        OnControllerColliderHitInternal?.Invoke(GetComponent<Collider>(), hit);
+        if (hit.collider.CompareTag("Weapon") && weapon == null) {
+            weapon = hit.gameObject.GetComponent<Weapon>();
+            weapon.Equip(GetComponent<Collider>(), weaponAttachPoint);
+        }
     }
 
-    private float CheckJump()
-    {
-        if (isJumpPressed) return initialJumpVelocity;
-        return -cc.minMoveDistance;
-    }
 
-    public void OnJump(InputAction.CallbackContext context) => isJumpPressed = context.ReadValueAsButton();
-    public void OnMove(InputAction.CallbackContext ctx)
-    {
-        if (ctx.performed) direction = ctx.ReadValue<Vector2>();
-        if (ctx.canceled) direction = Vector2.zero;
-    }
 }
