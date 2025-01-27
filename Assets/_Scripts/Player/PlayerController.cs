@@ -19,28 +19,37 @@ public class PlayerController : MonoBehaviour, ThirdPersonInputs.IOverworldActio
     [SerializeField] private float rotationSpeed = 30.0f;
     private float curSpeed = 5.0f;
 
+    //Jump Variables
+    [Header("Jump Variables")]
+    [SerializeField] private float jumpHeight = 0.1f;
+    [SerializeField] private float jumpTime = 0.7f; //both upward and downward movement
+    //values that are calculated using jump height and jump time
+    private float timeToApex; //max jump time / 2
+    private float initialJumpVelocity;
+
     //weapon system variables
     [Header("Weapon Variables")]
     [SerializeField] private Transform weaponAttachPoint;
     Weapon weapon = null;
 
+    //Test Variables
     public LayerMask raycastCollisionLayer;
+
+    //Action for ControllerColliderHit - Assumes that there is only one controller in the scene
     public static event Action<Collider, ControllerColliderHit> OnControllerColliderHitInternal;
 
     //Character movement
     Vector2 direction;
     Vector3 velocity;
-
-    //jump variables
-    private bool isJumpPressed = false;
-    //TODO: creating isJumpReleased and fixing the jump to add mechanics such as variable jump height
-    private float jumpHeight = 0.1f;
-    private float jumpTime = 0.7f; //both upward and downward movement
-    //values that are calculated using jump height and jump time
-    private float timeToApex; //max jump time / 2
-    private float initialJumpVelocity;
+    
     //this will also be calculated based on our jump values
     private float gravity;
+
+    //jump input
+    private bool isJumpPressed = false;
+    //TODO: creating isJumpReleased and fixing the jump to add mechanics such as variable jump height
+    
+    
 
     #region Setup Functions
     void Awake()

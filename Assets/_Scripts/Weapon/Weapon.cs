@@ -15,6 +15,8 @@ public class Weapon : MonoBehaviour
         PlayerController.OnControllerColliderHitInternal += OnPlayerControllerHit;
     }
 
+    private void OnDestroy() => PlayerController.OnControllerColliderHitInternal -= OnPlayerControllerHit;
+
     void OnPlayerControllerHit(Collider playerCollider, ControllerColliderHit thingThatHitPlayer)
     {
         Debug.Log($"Player has been hit by {thingThatHitPlayer.collider.name}");
